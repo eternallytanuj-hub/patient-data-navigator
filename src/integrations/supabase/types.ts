@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bp_readings: {
+        Row: {
+          created_at: string
+          diastolic: number
+          id: string
+          notes: string | null
+          session_id: string
+          stage: string
+          systolic: number
+        }
+        Insert: {
+          created_at?: string
+          diastolic: number
+          id?: string
+          notes?: string | null
+          session_id: string
+          stage: string
+          systolic: number
+        }
+        Update: {
+          created_at?: string
+          diastolic?: number
+          id?: string
+          notes?: string | null
+          session_id?: string
+          stage?: string
+          systolic?: number
+        }
+        Relationships: []
+      }
+      chat_history: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          language: string | null
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          role?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
