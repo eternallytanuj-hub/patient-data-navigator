@@ -128,8 +128,8 @@ const PatientForm = () => {
             <div>
               <SectionHeader icon={Stethoscope} title="Vitals" />
               <div className="grid sm:grid-cols-2 gap-4">
-                <FormSelect label="Systolic Pressure Range" value={form.systolic} onValueChange={update("systolic")} options={["111 - 120", "121- 130", "130+"]} />
-                <FormSelect label="Diastolic Pressure Range" value={form.diastolic} onValueChange={update("diastolic")} options={["70 - 80", "81 - 90", "91 - 100", "100+"]} />
+                <FormSelect label="Systolic Pressure Range" value={form.systolic} onValueChange={update("systolic")} options={["111 - 120 (Normal)", "121- 130 (Elevated)", "130+ (High)"]} />
+                <FormSelect label="Diastolic Pressure Range" value={form.diastolic} onValueChange={update("diastolic")} options={["70 - 80 (Normal)", "81 - 90 (Elevated)", "91 - 100 (High)", "100+ (Crisis)"]} />
               </div>
             </div>
 

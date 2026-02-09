@@ -35,15 +35,15 @@ export function predictHypertension(input: PatientInput): PredictionResult {
   let score = 0;
 
   // Systolic pressure scoring (heaviest weight)
-  if (input.systolic === "130+") score += 3;
-  else if (input.systolic === "121- 130") score += 2;
-  else score += 1; // 111 - 120
+  if (input.systolic === "130+ (High)") score += 3;
+  else if (input.systolic === "121- 130 (Elevated)") score += 2;
+  else score += 1; // 111 - 120 (Normal)
 
   // Diastolic pressure scoring
-  if (input.diastolic === "100+") score += 3;
-  else if (input.diastolic === "91 - 100") score += 2;
-  else if (input.diastolic === "81 - 90") score += 1;
-  else score += 0; // 70 - 80
+  if (input.diastolic === "100+ (Crisis)") score += 3;
+  else if (input.diastolic === "91 - 100 (High)") score += 2;
+  else if (input.diastolic === "81 - 90 (Elevated)") score += 1;
+  else score += 0; // 70 - 80 (Normal)
 
   // Symptom scoring
   if (input.breathShortness === "Yes") score += 1;
@@ -78,7 +78,7 @@ export function predictHypertension(input: PatientInput): PredictionResult {
       riskLevel: "EMERGENCY",
       recommendations: [
         "SEEK IMMEDIATE MEDICAL ATTENTION",
-        "Call emergency services (911) immediately",
+        "Call emergency services (108) immediately",
         "Do not attempt to lower blood pressure on your own",
         "Remain calm and avoid physical exertion",
         "If prescribed, take emergency medication as directed",
