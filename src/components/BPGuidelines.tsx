@@ -9,9 +9,9 @@ const guidelines = [
 ];
 
 const BPGuidelines = () => (
-  <Card className="border-medical/20">
+  <Card className="border-primary/20">
     <CardHeader className="pb-3">
-      <CardTitle className="text-base font-semibold text-medical-dark">
+      <CardTitle className="text-base font-semibold text-foreground">
         Blood Pressure Guidelines
       </CardTitle>
     </CardHeader>

@@ -40,19 +40,19 @@ const flowSteps = [
 
 const About = () => (
   <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 className="text-3xl font-bold text-medical-dark mb-2">About Predictive Pulse</h1>
+    <h1 className="text-3xl font-bold text-foreground mb-2">About Predictive Pulse</h1>
     <p className="text-muted-foreground mb-8 max-w-3xl">
       Predictive Pulse is a machine learning-based hypertension detection system that uses patient clinical data to classify blood pressure conditions into four categories: Normal, Stage-1, Stage-2, and Hypertensive Crisis. The system employs logistic regression as the primary classifier, selected for its superior accuracy of 91.2% among seven evaluated algorithms.
     </p>
 
     {/* Scenario Cards */}
-    <h2 className="text-xl font-semibold text-medical-dark mb-4">Application Scenarios</h2>
+    <h2 className="text-xl font-semibold text-foreground mb-4">Application Scenarios</h2>
     <div className="grid md:grid-cols-3 gap-4 mb-10">
       {scenarios.map(({ icon: Icon, title, desc }) => (
-        <Card key={title} className="border-medical/15 hover:shadow-md transition-shadow">
+        <Card key={title} className="border-primary/15 hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <div className="bg-medical/10 w-10 h-10 rounded-lg flex items-center justify-center mb-2">
-              <Icon className="h-5 w-5 text-medical" />
+            <div className="bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center mb-2">
+              <Icon className="h-5 w-5 text-primary" />
             </div>
             <CardTitle className="text-base">{title}</CardTitle>
           </CardHeader>
@@ -64,7 +64,7 @@ const About = () => (
     </div>
 
     {/* Model Comparison */}
-    <h2 className="text-xl font-semibold text-medical-dark mb-4">Model Comparison</h2>
+    <h2 className="text-xl font-semibold text-foreground mb-4">Model Comparison</h2>
     <Card className="mb-10">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -78,7 +78,7 @@ const About = () => (
             </thead>
             <tbody>
               {models.map((m) => (
-                <tr key={m.name} className={`border-b last:border-0 ${m.selected ? "bg-medical/5" : ""}`}>
+                <tr key={m.name} className={`border-b last:border-0 ${m.selected ? "bg-primary/5" : ""}`}>
                   <td className="p-3 font-medium">{m.name}</td>
                   <td className="p-3 text-center">{m.accuracy}</td>
                   <td className="p-3 text-center">
@@ -97,17 +97,17 @@ const About = () => (
     </Card>
 
     {/* Technical Flow */}
-    <h2 className="text-xl font-semibold text-medical-dark mb-4">Technical Flow</h2>
+    <h2 className="text-xl font-semibold text-foreground mb-4">Technical Flow</h2>
     <Card>
       <CardContent className="py-6">
         <div className="flex flex-wrap items-center justify-center gap-2">
           {flowSteps.map((step, i) => (
             <div key={step} className="flex items-center gap-2">
-              <div className="bg-medical text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+              <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
                 {step}
               </div>
               {i < flowSteps.length - 1 && (
-                <span className="text-medical text-xl">→</span>
+                <span className="text-primary text-xl">→</span>
               )}
             </div>
           ))}

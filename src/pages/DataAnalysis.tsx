@@ -5,7 +5,6 @@ import {
   medicationVsSeverity,
   bpScatterData,
   symptomPrevalence,
-  genderPerStage,
 } from "@/data/patientData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -27,7 +26,7 @@ const StatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType
         <Icon className="h-5 w-5 text-white" />
       </div>
       <div>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold text-foreground">{value}</div>
         <div className="text-xs text-muted-foreground">{label}</div>
       </div>
     </CardContent>
@@ -36,14 +35,14 @@ const StatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType
 
 const DataAnalysis = () => (
   <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 className="text-3xl font-bold text-medical-dark mb-2">Data Analysis Dashboard</h1>
+    <h1 className="text-3xl font-bold text-foreground mb-2">Data Analysis Dashboard</h1>
     <p className="text-muted-foreground mb-6">
       Interactive visualizations from the patient dataset ({datasetStats.totalRecords} records)
     </p>
 
     {/* Stats */}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <StatCard icon={Database} label="Total Records" value={datasetStats.totalRecords} color="bg-medical" />
+      <StatCard icon={Database} label="Total Records" value={datasetStats.totalRecords} color="bg-primary" />
       <StatCard icon={Users} label="Male Patients" value={datasetStats.genderDistribution.Male} color="bg-blue-500" />
       <StatCard icon={Users} label="Female Patients" value={datasetStats.genderDistribution.Female} color="bg-pink-500" />
       <StatCard icon={Heart} label="Crisis Cases" value={datasetStats.stageDistribution["HYPERTENSIVE CRISIS"]} color="bg-red-500" />
