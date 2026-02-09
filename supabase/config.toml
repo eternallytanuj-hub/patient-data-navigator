@@ -1,1 +1,7 @@
 project_id = "asdzqckwfpmfoeqgvflh"
+
+[functions.hypertension-coach]
+verify_jwt = false
+
+[functions.analyze-bp-trends]
+verify_jwt = false

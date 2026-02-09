@@ -7,6 +7,9 @@ import { predictHypertension, type PatientInput, type PredictionResult } from "@
 import PredictionResultCard from "./PredictionResult";
 import BPGuidelines from "./BPGuidelines";
 import { Activity, Heart, Stethoscope, Apple, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/useSession";
+import { useToast } from "@/hooks/use-toast";
 
 const yesNo = ["Yes", "No"] as const;
 
@@ -39,7 +42,13 @@ const SectionHeader = ({ icon: Icon, title }: { icon: React.ElementType; title: 
   </div>
 );
 
-const PatientForm = () => {
+interface PatientFormProps {
+  onPredictionComplete?: (result: PredictionResult, input: PatientInput) => void;
+}
+
+const PatientForm = ({ onPredictionComplete }: PatientFormProps) => {
+  const { sessionId } = useSession();
+  const { toast } = useToast();
   const [form, setForm] = useState<PatientInput>({
     gender: "",
     ageGroup: "",
@@ -57,6 +66,7 @@ const PatientForm = () => {
   });
 
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const update = (field: keyof PatientInput) => (value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -65,10 +75,61 @@ const PatientForm = () => {
 
   const isComplete = Object.values(form).every((v) => v !== "");
 
-  const handleSubmit = () => {
+  // Extract numeric BP values from form selections
+  const extractBPValues = () => {
+    let systolic = 115; // default normal
+    let diastolic = 75; // default normal
+
+    if (form.systolic.includes("130+")) systolic = 140;
+    else if (form.systolic.includes("121")) systolic = 125;
+    else if (form.systolic.includes("111")) systolic = 115;
+
+    if (form.diastolic.includes("100+")) diastolic = 105;
+    else if (form.diastolic.includes("91")) diastolic = 95;
+    else if (form.diastolic.includes("81")) diastolic = 85;
+    else if (form.diastolic.includes("70")) diastolic = 75;
+
+    return { systolic, diastolic };
+  };
+
+  const handleSubmit = async () => {
     if (!isComplete) return;
+    
     const prediction = predictHypertension(form);
     setResult(prediction);
+    
+    // Notify parent component
+    if (onPredictionComplete) {
+      onPredictionComplete(prediction, form);
+    }
+
+    // Save BP reading to database
+    if (sessionId) {
+      setIsSaving(true);
+      try {
+        const { systolic, diastolic } = extractBPValues();
+        const { error } = await supabase.from("bp_readings").insert({
+          session_id: sessionId,
+          systolic,
+          diastolic,
+          stage: prediction.stage,
+          notes: `Assessment completed. Risk: ${prediction.riskLevel}`,
+        });
+
+        if (error) {
+          console.error("Failed to save BP reading:", error);
+        } else {
+          toast({
+            title: "Reading Saved",
+            description: "Your BP reading has been recorded for progress tracking.",
+          });
+        }
+      } catch (err) {
+        console.error("Error saving BP reading:", err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
   };
 
   const patientInfo: Record<string, string> = {
@@ -143,11 +204,11 @@ const PatientForm = () => {
 
             <Button
               onClick={handleSubmit}
-              disabled={!isComplete}
+              disabled={!isComplete || isSaving}
               className="w-full h-12 text-base font-semibold"
               size="lg"
             >
-              Generate Risk Assessment
+              {isSaving ? "Saving..." : "Generate Risk Assessment"}
             </Button>
           </CardContent>
         </Card>
