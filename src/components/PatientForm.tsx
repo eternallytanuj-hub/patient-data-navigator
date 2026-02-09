@@ -33,9 +33,9 @@ const FormSelect = ({ label, value, onValueChange, options, placeholder }: {
 );
 
 const SectionHeader = ({ icon: Icon, title }: { icon: React.ElementType; title: string }) => (
-  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-medical/10">
-    <Icon className="h-4 w-4 text-medical" />
-    <h3 className="font-semibold text-sm text-medical-dark">{title}</h3>
+  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-primary/10">
+    <Icon className="h-4 w-4 text-primary" />
+    <h3 className="font-semibold text-sm text-foreground">{title}</h3>
   </div>
 );
 
@@ -87,7 +87,7 @@ const PatientForm = () => {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-medical-dark">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <Stethoscope className="h-5 w-5" />
               Patient Assessment Form
             </CardTitle>
@@ -144,7 +144,7 @@ const PatientForm = () => {
             <Button
               onClick={handleSubmit}
               disabled={!isComplete}
-              className="w-full bg-medical hover:bg-medical-dark text-white h-12 text-base font-semibold"
+              className="w-full h-12 text-base font-semibold"
               size="lg"
             >
               Generate Risk Assessment
