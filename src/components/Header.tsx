@@ -1,0 +1,48 @@
+import { Link, useLocation } from "react-router-dom";
+import { Activity, BarChart3, Info } from "lucide-react";
+
+const navItems = [
+  { path: "/", label: "Prediction", icon: Activity },
+  { path: "/analysis", label: "Data Analysis", icon: BarChart3 },
+  { path: "/about", label: "About", icon: Info },
+];
+
+const Header = () => {
+  const location = useLocation();
+
+  return (
+    <header className="bg-gradient-to-r from-medical-dark via-medical to-medical-light text-white shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between py-4">
+          <div className="flex items-center gap-3 mb-3 sm:mb-0">
+            <Activity className="h-8 w-8" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Predictive Pulse</h1>
+              <p className="text-xs text-blue-200 hidden sm:block">
+                AI-Powered Cardiovascular Risk Assessment
+              </p>
+            </div>
+          </div>
+          <nav className="flex gap-1">
+            {navItems.map(({ path, label, icon: Icon }) => (
+              <Link
+                key={path}
+                to={path}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  location.pathname === path
+                    ? "bg-white/20 text-white shadow-inner"
+                    : "text-blue-100 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
