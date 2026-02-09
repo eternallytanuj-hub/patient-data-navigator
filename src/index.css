@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide any Lovable branding/badge injected elements */
+[class*="lovable"],
+[id*="lovable"],
+iframe[src*="lovable"],
+script[src*="lovable"],
+.lovable-badge,
+.lovable-icon,
+.lovable-widget {
+  display: none !important;
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { type PredictionResult, type PatientInput } from "@/lib/prediction";
 import type { SpeechRecognition as SpeechRecognitionType } from "@/types/speech.d";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -36,9 +37,32 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
   // Initial greeting
   useEffect(() => {
     if (messages.length === 0) {
-      const greeting = language === "hi" 
-        ? "नमस्ते! 🙏 मैं आपका AI Hypertension Coach हूं। आपके BP को manage करने में मदद करूंगा। कृपया अपने assessment के बाद मुझसे diet, exercise, या lifestyle के बारे में पूछें।"
-        : "Hello! 🙏 I'm your AI Hypertension Coach. I'm here to help you manage your blood pressure with personalized Indian diet plans, yoga recommendations, and lifestyle tips. Feel free to ask me anything!";
+      let greeting = "";
+      
+      if (predictionResult && patientInput) {
+        const getRiskLevel = (stage: string) => {
+          const stageMap: Record<string, string> = {
+            "Normal": "Low",
+            "Elevated": "Moderate",
+            "Stage 1": "High",
+            "Stage 2": "Very High",
+            "Hypertensive Crisis": "Critical"
+          };
+          return stageMap[stage] || "Unknown";
+        };
+
+        const riskLevel = getRiskLevel(predictionResult.stage);
+        
+        if (language === "hi") {
+          greeting = `नमस्ते! 🙏 आपका Risk Level: ${riskLevel} है (Stage: ${predictionResult.stage})\n\nमैं आपका AI Hypertension Coach हूं। आपके BP को manage करने के लिए मैं आपको:\n✓ व्यक्तिगत भारतीय आहार योजना\n✓ योग और व्यायाम सुझाव\n✓ जीवनशैली संशोधन\n\nप्रदान करूंगा। कृपया अपने आहार, व्यायाम, या दवा के बारे में पूछें।`;
+        } else {
+          greeting = `Hello! 🙏 Your Risk Level: ${riskLevel} (Stage: ${predictionResult.stage})\n\nI'm your AI Hypertension Coach. Based on your assessment, I'll provide you:\n✓ Personalized Indian diet plans with specific foods\n✓ Yoga and exercise recommendations\n✓ Lifestyle modifications\n\nAsk me about your personalized diet plan, exercises, or medications!`;
+        }
+      } else {
+        greeting = language === "hi" 
+          ? "नमस्ते! 🙏 मैं आपका AI Hypertension Coach हूं। आपके BP को manage करने में मदद करूंगा। कृपया पहले assessment पूरा करें, फिर मुझसे diet, exercise, या lifestyle के बारे में पूछें।"
+          : "Hello! 🙏 I'm your AI Hypertension Coach. Please complete the assessment first to receive personalized Indian diet plans, yoga recommendations, and lifestyle tips.";
+      }
       
       setMessages([{
         id: crypto.randomUUID(),
@@ -46,7 +70,75 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
         content: greeting
       }]);
     }
-  }, [language]);
+  }, [language, predictionResult, patientInput]);
+
+  // Save risk assessment and generate diet plan
+  useEffect(() => {
+    const saveRiskAssessment = async () => {
+      if (!predictionResult || !patientInput) return;
+
+      try {
+        const sessionId = sessionStorage.getItem("sessionId") || crypto.randomUUID().toString();
+        if (!sessionStorage.getItem("sessionId")) {
+          sessionStorage.setItem("sessionId", sessionId);
+        }
+
+        // Get risk level based on stage
+        const getRiskLevel = (stage: string) => {
+          const stageMap: Record<string, string> = {
+            "Normal": "Low",
+            "Elevated": "Moderate",
+            "Stage 1": "High",
+            "Stage 2": "Very High",
+            "Hypertensive Crisis": "Critical"
+          };
+          return stageMap[stage] || "Unknown";
+        };
+
+        // Generate Indian diet recommendations based on stage
+        const getDietRecommendations = (stage: string) => {
+          const recommendations: Record<string, string> = {
+            "Normal": "• Continue with balanced diet\n• Include vegetables, whole grains, legumes\n• Limit salt to <5g per day\n• Stay hydrated with water and herbal tea",
+            "Elevated": "• Focus on low-sodium Indian foods\n• Include more leafy greens, millets, pulses\n• Prepare food with minimal oil\n• Avoid pickles, processed foods, and excess salt",
+            "Stage 1": "• Strict DASH-like diet with Indian flavors\n• Increase potassium-rich foods: bananas, spinach, moong\n• Use herbs for seasoning instead of salt\n• Limit red meat, include fish 2x/week",
+            "Stage 2": "• Therapeutic DASH diet strictly\n• Plant-based emphasis: dal, beans, vegetables\n• Avoid fried foods and high-sodium snacks\n• Work with nutritionist for meal planning",
+            "Hypertensive Crisis": "• Consult doctor immediately\n• Follow prescribed diet plan strictly\n• Emergency dietary management required\n• Regular monitoring essential"
+          };
+          return recommendations[stage] || "Consult healthcare provider for personalized diet plan";
+        };
+
+        const riskLevel = getRiskLevel(predictionResult.stage);
+        const dietRecommendations = getDietRecommendations(predictionResult.stage);
+
+        // Save to Supabase
+        const { error } = await supabase
+          .from("risk_assessments")
+          .insert({
+            session_id: sessionId,
+            age_group: patientInput.ageGroup,
+            stage: predictionResult.stage,
+            risk_level: riskLevel,
+            systolic: patientInput.systolic,
+            diastolic: patientInput.diastolic,
+            on_medication: patientInput.takingMedication === "Yes",
+            family_history: patientInput.familyHistory === "Yes",
+            diet_preference: patientInput.controlledDiet,
+            diet_recommendations: dietRecommendations,
+            lifestyle_recommendations: `• Daily 30-minute exercise (brisk walk, yoga)\n• Manage stress through meditation\n• Sleep 7-8 hours regularly\n• Limit alcohol consumption\n• Avoid smoking\n• Regular BP monitoring`
+          });
+
+        if (error) {
+          console.error("Error saving risk assessment:", error);
+        } else {
+          console.log("Risk assessment saved successfully");
+        }
+      } catch (err) {
+        console.error("Failed to save risk assessment:", err);
+      }
+    };
+
+    saveRiskAssessment();
+  }, [predictionResult, patientInput]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -55,18 +147,18 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
     }
   }, [messages]);
 
-  // Speech recognition setup
+  // Speech recognition setup (initialize once)
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
 
-      recognitionRef.current.onresult = (event) => {
+      recognitionRef.current.onresult = (event: any) => {
         const transcript = Array.from(event.results)
-          .map((result) => result[0].transcript)
+          .map((result: any) => result[0].transcript)
           .join("");
         setInput(transcript);
       };
@@ -75,8 +167,8 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
         setIsListening(false);
       };
 
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error:", event?.error || event);
         setIsListening(false);
         toast({
           title: "Voice input error",
@@ -88,10 +180,27 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          /* ignore */
+        }
       }
     };
-  }, [language, toast]);
+    // initialize only once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update language when it changes
+  useEffect(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
+      } catch {
+        // ignore
+      }
+    }
+  }, [language]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -104,12 +213,29 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
     }
 
     if (isListening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        try { recognitionRef.current.abort(); } catch {}
+      }
       setIsListening(false);
-    } else {
+      return;
+    }
+
+    // Start listening with error handling for permissions or runtime errors
+    try {
       recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
       recognitionRef.current.start();
       setIsListening(true);
+    } catch (err: any) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+      toast({
+        title: "Voice input error",
+        description:
+          err?.message || "Unable to start microphone. Check permissions and try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -126,15 +252,40 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
     setInput("");
     setIsLoading(true);
 
-    // Build patient context from prediction result
+    // Build patient context from prediction result with diet recommendations
+    const getRiskLevel = (stage: string) => {
+      const stageMap: Record<string, string> = {
+        "Normal": "Low",
+        "Elevated": "Moderate",
+        "Stage 1": "High",
+        "Stage 2": "Very High",
+        "Hypertensive Crisis": "Critical"
+      };
+      return stageMap[stage] || "Unknown";
+    };
+
+    const getDietRecommendations = (stage: string) => {
+      const recommendations: Record<string, string> = {
+        "Normal": "• Continue with balanced diet\n• Include vegetables, whole grains, legumes\n• Limit salt to <5g per day\n• Stay hydrated with water and herbal tea",
+        "Elevated": "• Focus on low-sodium Indian foods\n• Include more leafy greens, millets, pulses\n• Prepare food with minimal oil\n• Avoid pickles, processed foods, and excess salt",
+        "Stage 1": "• Strict DASH-like diet with Indian flavors\n• Increase potassium-rich foods: bananas, spinach, moong\n• Use herbs for seasoning instead of salt\n• Limit red meat, include fish 2x/week",
+        "Stage 2": "• Therapeutic DASH diet strictly\n• Plant-based emphasis: dal, beans, vegetables\n• Avoid fried foods and high-sodium snacks\n• Work with nutritionist for meal planning",
+        "Hypertensive Crisis": "• Consult doctor immediately\n• Follow prescribed diet plan strictly\n• Emergency dietary management required\n• Regular monitoring essential"
+      };
+      return recommendations[stage] || "Consult healthcare provider for personalized diet plan";
+    };
+
     const patientContext = predictionResult && patientInput ? {
       stage: predictionResult.stage,
+      riskLevel: getRiskLevel(predictionResult.stage),
       ageGroup: patientInput.ageGroup,
       dietPreference: patientInput.controlledDiet === "Yes" ? "Controlled" : "Uncontrolled",
       systolic: patientInput.systolic,
       diastolic: patientInput.diastolic,
       onMedication: patientInput.takingMedication,
       familyHistory: patientInput.familyHistory,
+      recommendedDietPlan: getDietRecommendations(predictionResult.stage),
+      importance: "IMPORTANT: Provide personalized Indian diet plans with specific foods, recipes, and meal timing based on the risk stage. Include traditional Indian foods and cooking methods.",
     } : undefined;
 
     let assistantContent = "";

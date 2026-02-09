@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PatientForm from "@/components/PatientForm";
 import AICoach from "@/components/AICoach";
 import ProgressTracker from "@/components/ProgressTracker";
+import { Button } from "@/components/ui/button";
 import { Shield, ClipboardCheck, HeartPulse, Stethoscope, Bot, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PredictionResult, type PatientInput } from "@/lib/prediction";
@@ -17,9 +18,33 @@ const Index = () => {
   const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
   const [patientInput, setPatientInput] = useState<PatientInput | null>(null);
 
+  // Load assessment data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedResult = localStorage.getItem("predictionResult");
+      const savedInput = localStorage.getItem("patientInput");
+      
+      if (savedResult) setPredictionResult(JSON.parse(savedResult));
+      if (savedInput) setPatientInput(JSON.parse(savedInput));
+    } catch (err) {
+      console.error("Failed to load assessment data from localStorage:", err);
+    }
+  }, []);
+
   const handlePredictionComplete = (result: PredictionResult, input: PatientInput) => {
     setPredictionResult(result);
     setPatientInput(input);
+    
+    // Persist to localStorage
+    localStorage.setItem("predictionResult", JSON.stringify(result));
+    localStorage.setItem("patientInput", JSON.stringify(input));
+  };
+
+  const clearAssessment = () => {
+    setPredictionResult(null);
+    setPatientInput(null);
+    localStorage.removeItem("predictionResult");
+    localStorage.removeItem("patientInput");
   };
 
   return (
@@ -71,6 +96,13 @@ const Index = () => {
               <p className="text-center text-sm text-muted-foreground mt-4">
                 💡 Complete an assessment first for personalized coaching based on your health profile.
               </p>
+            )}
+            {predictionResult && (
+              <div className="flex justify-center gap-2 mt-4">
+                <Button variant="outline" size="sm" onClick={clearAssessment}>
+                  Clear Assessment & Start Fresh
+                </Button>
+              </div>
             )}
           </div>
         </TabsContent>

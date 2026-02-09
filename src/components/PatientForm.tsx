@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -49,24 +49,41 @@ interface PatientFormProps {
 const PatientForm = ({ onPredictionComplete }: PatientFormProps) => {
   const { sessionId } = useSession();
   const { toast } = useToast();
-  const [form, setForm] = useState<PatientInput>({
-    gender: "",
-    ageGroup: "",
-    familyHistory: "",
-    underMedicalCare: "",
-    takingMedication: "",
-    diagnosedWhen: "",
-    severity: "",
-    breathShortness: "",
-    visualChanges: "",
-    noseBleeding: "",
-    systolic: "",
-    diastolic: "",
-    controlledDiet: "",
+  
+  // Initialize form state from localStorage or empty
+  const [form, setForm] = useState<PatientInput>(() => {
+    try {
+      const savedForm = localStorage.getItem("patientFormData");
+      if (savedForm) {
+        return JSON.parse(savedForm);
+      }
+    } catch (err) {
+      console.error("Failed to load form data from localStorage:", err);
+    }
+    return {
+      gender: "",
+      ageGroup: "",
+      familyHistory: "",
+      underMedicalCare: "",
+      takingMedication: "",
+      diagnosedWhen: "",
+      severity: "",
+      breathShortness: "",
+      visualChanges: "",
+      noseBleeding: "",
+      systolic: "",
+      diastolic: "",
+      controlledDiet: "",
+    };
   });
 
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("patientFormData", JSON.stringify(form));
+  }, [form]);
 
   const update = (field: keyof PatientInput) => (value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
