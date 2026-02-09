@@ -78,7 +78,7 @@ export function predictHypertension(input: PatientInput): PredictionResult {
       riskLevel: "EMERGENCY",
       recommendations: [
         "SEEK IMMEDIATE MEDICAL ATTENTION",
-        "Call emergency services (108) immediately",
+        "Call emergency services (108/112) immediately",
         "Do not attempt to lower blood pressure on your own",
         "Remain calm and avoid physical exertion",
         "If prescribed, take emergency medication as directed",
