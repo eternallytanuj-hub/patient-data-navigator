@@ -2,15 +2,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Send, Mic, MicOff, Loader2, User, Globe } from "lucide-react";
+import { Bot, Send, Mic, MicOff, Loader2, User, Globe, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { type PredictionResult, type PatientInput } from "@/lib/prediction";
 import type { SpeechRecognition as SpeechRecognitionType } from "@/types/speech.d";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 
 interface Message {
   id: string;
@@ -35,6 +37,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
   const [dietPlan, setDietPlan] = useState<string>("");
   const [dietFormVisible, setDietFormVisible] = useState<boolean>(false);
   const [dietPreference, setDietPreference] = useState<string>("Vegetarian");
+  const [dietBudget, setDietBudget] = useState<number>(5000);
   const [favoriteFoods, setFavoriteFoods] = useState<string>("");
   const LANGUAGE_LABELS: Record<string, string> = {
     en: "English",
@@ -52,7 +55,14 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
   };
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const inputRef = useRef<string>(input);
+  const sendMessageRef = useRef<(() => void) | null>(null);
   const { toast } = useToast();
+
+  // Keep input ref in sync with state
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
 
   // Initial greeting
   useEffect(() => {
@@ -127,21 +137,27 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
         const dietRecommendations = getDietRecommendations(predictionResult.stage);
 
         // Save to Supabase
+        const riskAssessmentNotes = JSON.stringify({
+          risk_level: riskLevel,
+          age_group: patientInput.ageGroup,
+          on_medication: patientInput.takingMedication === "Yes",
+          family_history: patientInput.familyHistory === "Yes",
+          diet_preference: patientInput.controlledDiet,
+          diet_recommendations: dietRecommendations,
+          lifestyle_recommendations: `• Daily 30-minute exercise (brisk walk, yoga)\n• Manage stress through meditation\n• Sleep 7-8 hours regularly\n• Limit alcohol consumption\n• Avoid smoking\n• Regular BP monitoring`
+        });
+
+        const bpReadingData: TablesInsert<"bp_readings"> = {
+          session_id: sessionId,
+          stage: predictionResult.stage,
+          systolic: parseInt(patientInput.systolic, 10),
+          diastolic: parseInt(patientInput.diastolic, 10),
+          notes: riskAssessmentNotes
+        };
+
         const { error } = await supabase
-          .from("risk_assessments")
-          .insert({
-            session_id: sessionId,
-            age_group: patientInput.ageGroup,
-            stage: predictionResult.stage,
-            risk_level: riskLevel,
-            systolic: patientInput.systolic,
-            diastolic: patientInput.diastolic,
-            on_medication: patientInput.takingMedication === "Yes",
-            family_history: patientInput.familyHistory === "Yes",
-            diet_preference: patientInput.controlledDiet,
-            diet_recommendations: dietRecommendations,
-            lifestyle_recommendations: `• Daily 30-minute exercise (brisk walk, yoga)\n• Manage stress through meditation\n• Sleep 7-8 hours regularly\n• Limit alcohol consumption\n• Avoid smoking\n• Regular BP monitoring`
-          });
+          .from("bp_readings")
+          .insert([bpReadingData]);
 
         if (error) {
           console.error("Error saving risk assessment:", error);
@@ -157,7 +173,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
   }, [predictionResult, patientInput]);
 
   // Helper to generate a personalized plan (used by Diet Planner form)
-  const generateDietPlan = (stage: string, preference: string, favorites: string) => {
+  const generateDietPlan = (stage: string, preference: string, favorites: string, budget: number = 5000) => {
     const stageDetails: Record<string, { title: string; keyPoints: string; foods: string; avoid: string }> = {
       "Normal": {
         title: "Normal BP - Maintenance Plan",
@@ -206,6 +222,15 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
       preferenceSpecificFoods = `\nProtein Sources: White fish (sardine, mackerel, pomfret) 2-3x/week, skinless chicken (2-3x/week), eggs (max 2/week - boiled/poached), dals for daily protein\nDairy: Low-fat milk (200-250ml/day), low-fat curd\nFats: Mustard or sesame oil (limited), fish oil beneficial`;
     }
 
+    let budgetNote = "";
+    if (budget <= 2000) {
+      budgetNote = `\n\n💰 BUDGET-FRIENDLY TIPS (₹${budget}/month):\n• Use seasonal vegetables (cheaper & fresher)\n• Buy dals and legumes in bulk (moong, masoor, arhar)\n• Use local grains (bajra, jowar, ragi) - cost-effective & healthy\n• Skip expensive items like paneer, fish - use dals as main protein\n• Make your own spice blends instead of pre-packaged\n• Buy loose spices from local markets\n• One-pot meals (khichdi) save time and money`;
+    } else if (budget <= 5000) {
+      budgetNote = `\n\n📊 MODERATE-BUDGET PLAN (₹${budget}/month):\n• Mix seasonal and affordable vegetables\n• Standard dals and grains from local stores\n• Regular dairy products (milk, curd)\n• Occasional paneer or chicken\n• Standard spices from local markets\n• Balanced nutrition with good variety`;
+    } else {
+      budgetNote = `\n\n✨ PREMIUM OPTIONS (₹${budget}/month):\n• High-quality imported oils (olive oil) for salads\n• Organic vegetables from local farms\n• Fresh herbs (parsley, basil, mint, oregano)\n• Premium quality spices for enhanced flavor\n• Regular inclusion of premium fish (salmon, mackerel)\n• High-quality dairy (A2 milk, organic curd, Greek yogurt)\n• Organic nuts, seeds, and specialty items`;
+    }
+
     const favoritesNote = favorites 
       ? `\n\n🍽️ Using Your Favorites:\nIncorporate: ${favorites}\n→ Prepare without added salt\n→ Steam, grill, or bake instead of frying\n→ Use herbs and spices for flavor instead of salt`
       : "";
@@ -224,18 +249,18 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
 
     const tips = `\n\n💡 IMPORTANT TIPS:\n• USE SPICES NOT SALT: Jeera, dhania, turmeric, ginger, garlic, lemon juice, chili powder for flavor\n• COOKING METHODS: Steam, grill, bake, stir-fry (minimal oil) - avoid deep frying\n• OIL LIMIT: Max 5 tsp per day (mustard or sesame oil is best)\n• HYDRATION: Drink 8-10 glasses of water daily + herbal teas\n• MEAL TIMING: Regular intervals, not too big portions\n• MONITOR: Check BP regularly, keep a food diary, feel free to adjust based on your response\n• CONSISTENCY: Follow this plan for at least 4-6 weeks to see results\n\n⚠️ CONSULT YOUR DOCTOR if:\n• Symptoms worsen\n• BP doesn't improve in 2-3 months\n• Taking medications - ensure diet doesn't interfere\n• Planning to exercise heavily`;
 
-    return `${details.title}\n${details.keyPoints}\n\n${dietPreferenceNote}\n${preferenceSpecificFoods}\n${favoritesNote}\n\n🍽️ RECOMMENDED FOODS:\n${details.foods}\n\n🚫 FOODS TO AVOID:\n${details.avoid}\n${detailedMealPlan}\n${recipes}${tips}`;
+    return `${details.title}\n${details.keyPoints}\n\n${dietPreferenceNote}\n${preferenceSpecificFoods}${budgetNote}\n${favoritesNote}\n\n🍽️ RECOMMENDED FOODS:\n${details.foods}\n\n🚫 FOODS TO AVOID:\n${details.avoid}\n${detailedMealPlan}\n${recipes}${tips}`;
   };
 
   // Request diet plan from server (streams response)
-  const requestDietPlan = async (stage: string, preference: string, favorites: string) => {
+  const requestDietPlan = async (stage: string, preference: string, favorites: string, budget: number = 5000) => {
     setDietPlan("");
     setDietPlanVisible(true);
     setIsLoading(true);
 
     const systemInstruction = { role: "system", content: "You are an expert Indian dietitian. Create a culturally appropriate, evidence-based diet plan for hypertension patients. Be specific with foods, portion suggestions, meal timing, and low-salt preparation methods." };
 
-    const userPrompt = `Generate a personalized Indian diet plan for a patient with hypertension (Stage: ${stage}). Diet preference: ${preference}. Favorite foods / dislikes: ${favorites || 'None provided'}. Provide a 5-point summary, a sample 1-day meal schedule with portion suggestions, and 3 recipe ideas using the patient's favorites where possible. Keep language simple and include both English and Hindi lines if appropriate.`;
+    const userPrompt = `Generate a personalized Indian diet plan for a patient with hypertension (Stage: ${stage}). Diet preference: ${preference}. Monthly budget: ₹${budget}. Favorite foods / dislikes: ${favorites || 'None provided'}. Provide recommendations considering the budget level, a sample 1-day meal schedule with portion suggestions, and 3 recipe ideas using the patient's favorites where possible. Keep language simple and include both English and Hindi lines if appropriate.`;
 
     const messagesToSend = [systemInstruction, { role: "user", content: userPrompt }];
 
@@ -329,7 +354,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
       console.error("[Diet Planner] Error:", err);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to generate diet plan", variant: "destructive" });
       // fallback to local generator
-      const fallback = generateDietPlan(stage, preference, favorites);
+      const fallback = generateDietPlan(stage, preference, favorites, budget);
       setDietPlan(fallback);
     } finally {
       setIsLoading(false);
@@ -345,47 +370,124 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
 
   // Speech recognition setup (initialize once)
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    try {
+      // Check for browser support
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (!SpeechRecognition && !('webkitSpeechRecognition' in window)) {
+        console.warn("Speech Recognition API not supported in this browser");
+        toast({
+          title: "Browser not supported",
+          description: "Web Speech API is not available in your browser. Try Chrome, Edge, or Safari.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       recognitionRef.current = new SpeechRecognition();
+      
+      // Configure speech recognition
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
+      recognitionRef.current.lang = "en-IN";
+      recognitionRef.current.maxAlternatives = 1;
+
+      console.log("Speech Recognition initialized successfully");
+
+      recognitionRef.current.onstart = () => {
+        console.log("✓ Speech recognition started - listening now");
+      };
 
       recognitionRef.current.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        setInput(transcript);
+        console.log("Speech result received:", event);
+        let transcript = "";
+        let isFinal = false;
+        
+        // Process all results from resultIndex onwards
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcriptSegment = event.results[i][0].transcript;
+          transcript += transcriptSegment;
+          
+          if (event.results[i].isFinal) {
+            isFinal = true;
+          }
+          
+          console.log(`Result ${i}: "${transcriptSegment}" (Final: ${event.results[i].isFinal})`);
+        }
+        
+        console.log("Final transcript:", transcript, "Is Final:", isFinal);
+        
+        // Only update if we have actual text
+        if (transcript.trim()) {
+          console.log("Setting input to:", transcript);
+          setInput(transcript);
+        }
       };
 
       recognitionRef.current.onend = () => {
+        console.log("✓ Speech recognition ended");
         setIsListening(false);
+        
+        // Auto-send message after speech recognition ends
+        setTimeout(() => {
+          const message = inputRef.current?.trim();
+          if (message && sendMessageRef.current) {
+            console.log("Auto-sending message:", message);
+            sendMessageRef.current();
+          } else {
+            console.log("Not sending - empty input or no send function");
+          }
+        }, 100);
       };
 
       recognitionRef.current.onerror = (event: any) => {
-        console.error("Speech recognition error:", event?.error || event);
+        const errorType = event?.error;
+        console.error("✗ Speech recognition error:", errorType, event);
         setIsListening(false);
-        toast({
-          title: "Voice input error",
-          description: "Could not recognize speech. Please try again.",
-          variant: "destructive",
-        });
+        
+        // Map common error types to user-friendly messages
+        const errorMessages: Record<string, string> = {
+          "no-speech": "No speech detected - try speaking again",
+          "audio-capture": "Microphone access denied - check browser permissions",
+          "network": "Network error - check your internet connection",
+          "not-allowed": "Microphone permission denied - enable microphone access",
+          "service-not-allowed": "Web Speech service is not allowed",
+          "bad-grammar": "Speech recognition format error - try again",
+          "aborted": "Speech recognition was stopped",
+        };
+        
+        const userMessage = errorMessages[errorType] || `Voice error: ${errorType || "Unknown error"}`;
+        
+        // Only show toast for actual errors, not for no-speech
+        if (errorType !== "no-speech" && errorType !== "aborted") {
+          toast({
+            title: "Voice Input Error",
+            description: userMessage,
+            variant: "destructive",
+          });
+        }
       };
+    } catch (err: any) {
+      console.error("Failed to initialize Speech Recognition:", err);
+      toast({
+        title: "Initialization error",
+        description: "Could not initialize voice input: " + (err?.message || "Unknown error"),
+        variant: "destructive",
+      });
     }
 
     return () => {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch {
-          /* ignore */
+        } catch (e) {
+          console.log("Error aborting recognition:", e);
         }
       }
     };
     // initialize only once
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   // Update language when it changes (set speech recognition locale)
   useEffect(() => {
@@ -414,36 +516,94 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
+      const msg = "Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.";
+      console.warn(msg);
       toast({
         title: "Not supported",
-        description: "Voice input is not supported in your browser.",
+        description: msg,
         variant: "destructive",
       });
       return;
     }
 
     if (isListening) {
+      console.log("Stopping speech recognition");
       try {
         recognitionRef.current.stop();
-      } catch {
-        try { recognitionRef.current.abort(); } catch {}
+      } catch (e) {
+        console.log("Error stopping:", e);
+        try { 
+          recognitionRef.current.abort(); 
+        } catch {}
       }
       setIsListening(false);
       return;
     }
 
-    // Start listening with error handling for permissions or runtime errors
+    // Start listening
     try {
-      recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
-      recognitionRef.current.start();
-      setIsListening(true);
+      // Set the correct language locale
+      const localeMap: Record<string, string> = {
+        en: "en-IN",
+        hi: "hi-IN",
+        bn: "bn-IN",
+        ta: "ta-IN",
+        te: "te-IN",
+        ml: "ml-IN",
+        mr: "mr-IN",
+        gu: "gu-IN",
+        kn: "kn-IN",
+        pa: "pa-IN",
+        or: "or-IN",
+        as: "as-IN",
+      };
+      
+      const selectedLocale = localeMap[language] || "en-IN";
+      
+      console.log("Starting speech recognition with language:", selectedLocale);
+      
+      // Ensure configuration before starting
+      recognitionRef.current.lang = selectedLocale;
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.maxAlternatives = 1;
+      
+      // Reset and start fresh
+      try {
+        recognitionRef.current.abort();
+      } catch { /* ignore */ }
+      
+      // Small delay to allow abort to complete
+      setTimeout(() => {
+        try {
+          console.log("Calling start() method");
+          recognitionRef.current?.start();
+          setIsListening(true);
+          console.log("✓ Speech recognition request sent to browser");
+          
+          // Show brief feedback that listening started
+          toast({
+            title: "Listening...",
+            description: "Speak now in " + (language === "hi" ? "Hindi" : "English"),
+            variant: "default",
+          });
+        } catch (err: any) {
+          console.error("Error calling start():", err);
+          setIsListening(false);
+          toast({
+            title: "Error starting microphone",
+            description: err?.message || "Failed to start microphone. Check permissions.",
+            variant: "destructive",
+          });
+        }
+      }, 100);
+      
     } catch (err: any) {
       console.error("Failed to start speech recognition:", err);
       setIsListening(false);
       toast({
         title: "Voice input error",
-        description:
-          err?.message || "Unable to start microphone. Check permissions and try again.",
+        description: err?.message || "Unable to start microphone. Check browser permissions.",
         variant: "destructive",
       });
     }
@@ -622,6 +782,11 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
     }
   }, [input, isLoading, messages, predictionResult, patientInput, language, toast]);
 
+  // Update sendMessage ref whenever it changes
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -749,7 +914,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium">Diet Planner — Preferences</h3>
               <Button size="icon" variant="ghost" onClick={() => setDietFormVisible(false)}>
-                <MicOff className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
 
@@ -769,6 +934,22 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
               </div>
 
               <div>
+                <label className="text-xs text-muted-foreground block mb-1">Monthly Budget: ₹{dietBudget}</label>
+                <Slider
+                  min={1000}
+                  max={15000}
+                  step={500}
+                  value={[dietBudget]}
+                  onValueChange={(v) => setDietBudget(v[0])}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>₹1,000</span>
+                  <span>₹15,000</span>
+                </div>
+              </div>
+
+              <div>
                 <label className="text-xs text-muted-foreground block mb-1">Favorite foods / dislikes (comma separated)</label>
                 <Textarea
                   value={favoriteFoods}
@@ -785,7 +966,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
                     const stage = predictionResult?.stage || "Normal";
                     setDietFormVisible(false);
                     // Use local generator for immediate feedback
-                    const plan = generateDietPlan(stage, dietPreference, favoriteFoods);
+                    const plan = generateDietPlan(stage, dietPreference, favoriteFoods, dietBudget);
                     setDietPlan(plan);
                     setDietPlanVisible(true);
                     setIsLoading(false);
@@ -807,7 +988,7 @@ const AICoach = ({ predictionResult, patientInput }: AICoachProps) => {
                   {predictionResult?.stage || "Unknown"}
                 </Badge>
                 <Button size="icon" variant="ghost" onClick={() => setDietPlanVisible(false)}>
-                  <MicOff className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
